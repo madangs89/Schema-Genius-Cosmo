@@ -1,0 +1,148 @@
+import pubClient, { io } from "../app.js";
+import dotenv from "dotenv";
+dotenv.config();
+import crypto from "crypto";
+
+let ENCRYPTION_KEY = crypto
+  .createHash("sha256")
+  .update(process.env.ENCRYPTION_KEY.trim())
+  .digest(); // 32 chars
+const IV_LENGTH = 16;
+
+const statusMessages = [
+  // Initial steps
+  "👋 Welcome! We're starting to design your database schema.",
+  "🔍 Analyzing your requirements to ensure every detail is covered.",
+  "🗂️ Mapping out tables and fields for seamless data flow.",
+  "🔗 Identifying key entities and their relationships.",
+  "🛡️ Ensuring referential integrity for robust connections.",
+  // Progress updates
+  "⚙️ Building relationships, aligning fields, and optimizing everything behind the scenes.",
+  "🚀 Reviewing indexes for faster queries and performance.",
+  "🔎 Checking for potential bottlenecks and optimizing accordingly.",
+  "💡 Applying best practices for scalability and security.",
+  "📝 Integrating feedback to refine your schema design.",
+  // Validation and optimization
+  "✅ Validating all components to make sure everything fits perfectly.",
+  "🔄 Testing schema compatibility with your chosen tech stack.",
+  "🧩 Optimizing for your chosen database so it’s smooth and efficient.",
+  "🎯 Fine-tuning the schema layout for maximum clarity and performance…",
+  "✨ Polishing your database blueprint to be production-ready…",
+  // Finalization
+  "📦 Preparing migration scripts for smooth deployment.",
+  "🖌️ Putting on the final touches to ensure everything is just right…",
+  "🔔 Final checks complete — your database architecture is ready for action!",
+  "🌱 Your database schema is now future-proof and ready to grow with your app.",
+  "⏳ Almost done! Your schema is looking fantastic.",
+  // Completion
+  "🎉 All set! Your complete, ready-to-use schema is prepared!",
+  "✅ Your schema is ready! You can now integrate it into your project.",
+  "📤 Exporting your schema for easy access and implementation.",
+  "🙏 Thank you for your patience! Your database is now ready to use.",
+  "🛠️ If you need further customization, you can always update your schema later.",
+];
+const editingStatusMessages = [
+  // Initial steps
+  "✏️ Starting the editing process — getting everything ready...",
+  "🔍 Analyzing the requested changes to ensure accuracy.",
+  "🧠 Understanding the schema structure to apply edits intelligently.",
+  "🧭 Locating the exact entities, fields, or relationships to modify.",
+  "📌 Preparing a clean and safe environment to apply your edits.",
+
+  // Progress updates
+  "⚙️ Applying changes to the selected schema components...",
+  "🪄 Adjusting relationships, fields, and metadata as requested.",
+  "🔄 Rebuilding internal mappings to keep everything in sync.",
+  "📊 Ensuring that the updated structure stays logically consistent.",
+  "📝 Refining edits to align with schema best practices.",
+
+  // Validation and optimization
+  "✅ Verifying the integrity of all edits applied so far.",
+  "🧪 Testing the updated schema for conflicts or inconsistencies.",
+  "🛡️ Running validation checks to prevent schema-breaking changes.",
+  "🔗 Ensuring relationships remain valid and well-defined.",
+  "🧩 Re-optimizing the schema layout after your edits.",
+
+  // Finalization
+  "📦 Finalizing changes and preparing the updated schema...",
+  "✨ Polishing up your schema to reflect the new edits perfectly...",
+  "🔔 Double-checking that everything is consistent and stable.",
+  "🌿 The edits are seamlessly integrated into your schema.",
+  "⏳ Wrapping things up — your updated schema is nearly ready.",
+
+  // Completion
+  "🎉 All edits applied successfully — your schema is updated!",
+  "✅ Edits complete! Your schema now reflects the latest changes.",
+  "📤 Preparing the updated schema for export and integration.",
+  "🙏 Thank you for your patience — all changes are safely applied.",
+  "🛠️ You can continue refining your schema anytime with more edits.",
+];
+
+export const sendMessage = async (socket, index, projectId) => {
+  index = index % statusMessages.length;
+  const statusMessage = statusMessages[index];
+  console.log(`emiting the msg ${statusMessage}`);
+
+  io.to(socket).emit("statusUpdate", {
+    message: statusMessage,
+    isScroll: true,
+    projectId,
+    type: "status",
+  });
+};
+export const sendMessageEditing = async (socket, index, projectId) => {
+  index = index % editingStatusMessages.length;
+  const statusMessage = editingStatusMessages[index];
+  console.log(`emiting the msg ${statusMessage}`);
+
+  io.to(socket).emit("statusUpdate", {
+    message: statusMessage,
+    isScroll: true,
+    projectId,
+    type: "status",
+  });
+};
+export const sendMessage2 = async (socket, msg, projectId, type) => {
+  console.log(`emiting the msg ${msg}`);
+
+  if (type) {
+    io.to(socket).emit("statusUpdate", {
+      message: msg,
+      projectId,
+      isScroll: false,
+      type: "error",
+    });
+  } else {
+    io.to(socket).emit("statusUpdate", {
+      message: msg,
+      projectId,
+      isScroll: false,
+    });
+  }
+};
+
+export function encrypt(text) {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(
+    "aes-256-cbc",
+    Buffer.from(ENCRYPTION_KEY),
+    iv
+  );
+  let encrypted = cipher.update(text);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return iv.toString("hex") + ":" + encrypted.toString("hex");
+}
+
+export function decrypt(text) {
+  const [ivHex, encryptedText] = text.split(":");
+  const iv = Buffer.from(ivHex, "hex");
+  const encrypted = Buffer.from(encryptedText, "hex");
+  const decipher = crypto.createDecipheriv(
+    "aes-256-cbc",
+    Buffer.from(ENCRYPTION_KEY),
+    iv
+  );
+  let decrypted = decipher.update(encrypted);
+  decrypted = Buffer.concat([decrypted, decipher.final()]);
+  return decrypted.toString();
+}
